@@ -3,7 +3,16 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - Top Boundary
+  - Bottom Boundary
+  - Left Boundary
+  - Right Boundary
+  - Frozen
+  - Not Frozen
+  - Target
+  - ControllerGame
+  - Tagged Player
   layers:
   - Default
   - TransparentFX
