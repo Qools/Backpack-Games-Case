@@ -4,55 +4,86 @@ using System.Collections;
 // accepts input and animates the player
 public class PlayerInput : MonoBehaviour
 {
-	Animator _animator;
+    [SerializeField] private Transform character;
+    [SerializeField] private Rigidbody _rigidbody;
+    [SerializeField] private Animator _animator;
 
-	public float m_maxVelocity;
-	public float m_acceleration;
-	public float m_deccelerationMultiplier;
-	public float rotationDegreesPerSecond = 360;
+    public float moveSpeed, rotateSpeed;
+    Vector3 direction;
 
-	float _velocity;
-	Vector2 _input = Vector2.zero;
+    bool isMouseDown;
 
-
-    void Start ()
+    void Update()
     {
-		_animator = GetComponent<Animator> ();
+        if (!GameManager.Instance.isGameStarted)
+            return;
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            isMouseDown = true;
+
+            _rigidbody.isKinematic = false;
+
+            _animator.ResetTrigger(PlayerPrefKeys.stopTrigger);
+            _animator.SetTrigger(PlayerPrefKeys.runTrigger);
+        }
+
+        if (Input.GetMouseButtonUp(0))
+        {
+            isMouseDown = false;
+            Stop();
+        }
     }
 
-    void Update ()
+    private void FixedUpdate()
     {
-        float horizontal = Input.GetAxis (PlayerPrefKeys.horizontal);
-        float vertical = Input.GetAxis (PlayerPrefKeys.vertical);
-        
-		_input.x = horizontal;
-		_input.y = vertical;
-		float inputMag = _input.magnitude;
 
+        if (!isMouseDown) return;
 
-		if (!Mathf.Approximately (vertical, 0.0f) || !Mathf.Approximately (horizontal, 0.0f)) {
-			Vector3 direction = new Vector3 (horizontal, 0.0f, vertical);
-			direction = Vector3.ClampMagnitude (direction, 1.0f);
+        direction = new Vector3(Joystick.current.GetAxis("Horizontal"), 0f, Joystick.current.GetAxis("Vertical"));
 
-			if (_velocity < m_maxVelocity) {
-				_velocity += m_acceleration * Time.deltaTime;
-				if (_velocity > m_maxVelocity)
-					_velocity = m_maxVelocity;
-			}
+        Rotate();
 
-			transform.rotation = Quaternion.RotateTowards (transform.rotation, Quaternion.LookRotation (direction), rotationDegreesPerSecond * Time.deltaTime);
+        MoveForward();
+    }
 
+    private void OnEnable()
+    {
+        EventSystem.OnGameOver += OnGameOver;
+    }
 
-		} else if (_velocity > 0){
-			
-			_velocity -= m_acceleration * m_deccelerationMultiplier * Time.deltaTime;
-			if (_velocity < 0)
-				_velocity = 0;
-		}
+    private void OnDisable()
+    {
+        EventSystem.OnGameOver -= OnGameOver;
+    }
 
-		transform.position += transform.forward * Time.deltaTime * _velocity;
+    private void OnGameOver(GameResult gameResult)
+    {
+        Stop();
+    }
 
-		_animator.SetFloat ("Blend", _velocity / m_maxVelocity);
+    public void Rotate()
+    {
+        character.rotation = Quaternion.RotateTowards(
+            character.rotation,
+            Quaternion.LookRotation(direction),
+            rotateSpeed * Time.fixedDeltaTime);
+    }
 
+    public void MoveForward()
+    {
+        Vector3 newVelocity = Joystick.current.knobDistance * moveSpeed * Time.fixedDeltaTime * direction;
+        newVelocity.y = _rigidbody.velocity.y;
+        _rigidbody.velocity = newVelocity;
+    }
+
+    public void Stop()
+    {
+        _animator.ResetTrigger(PlayerPrefKeys.runTrigger);
+        _animator.SetTrigger(PlayerPrefKeys.stopTrigger);
+
+        _rigidbody.velocity = Vector3.zero;
+        _rigidbody.angularVelocity = Vector3.zero;
+        _rigidbody.isKinematic = true;
     }
 }

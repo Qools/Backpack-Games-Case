@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class StartMenu : MonoBehaviour
+public class StartMenu : UIPanel
 {
     [SerializeField] private Button startButton;
 
@@ -15,5 +15,7 @@ public class StartMenu : MonoBehaviour
     public void StartGame()
     {
         EventSystem.CallStartGame();
+
+        MenuManager.Instance.SwitchPanel<InGamePanel>();
     }
 }

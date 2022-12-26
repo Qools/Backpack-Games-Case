@@ -12,6 +12,7 @@ public class Seek : MonoBehaviour
     private GameObject[] players;
 
     public float speed = 2.0f;
+    private float currentSpeed;
     public bool hasTarget;
 
     private Rigidbody mRigidBody; 
@@ -24,58 +25,56 @@ public class Seek : MonoBehaviour
     void Start()
     {
         mRigidBody = GetComponent<Rigidbody>();
-        gController = GameObject.Find(PlayerPrefKeys.gameController).GetComponent<GameController>();
+        gController = GameController.Instance;
+        gController.players.Add(this.gameObject);
+
+        currentSpeed = 0f;
     }
 
     void Update()
     {
+        if (!GameManager.Instance.isGameStarted)
+            return;
+
         SeekBehavior();
         AlignBehavior();
     }
 
+    private void OnEnable()
+    {
+        EventSystem.OnStartGame += OnGameStart;
+        EventSystem.OnGameOver += OnGameOver;
+    }
+
+    private void OnDisable()
+    {
+        EventSystem.OnStartGame -= OnGameStart;
+        EventSystem.OnGameOver -= OnGameOver;
+    }
+
+    private void OnGameStart()
+    {
+        currentSpeed = speed;
+    }
+
+    private void OnGameOver(GameResult gameResult)
+    {
+        currentSpeed = 0;
+        mRigidBody.velocity = Vector3.zero;
+    }
+
     private void SeekBehavior()
     {
-        if (tag == PlayerPrefKeys.taggedPlayer)
+        if (CompareTag(PlayerPrefKeys.taggedPlayer))
         {
-            if (!target)
-            {
-                FindTarget();
-            }
-            target.tag = PlayerPrefKeys.target;
-            mRigidBody.velocity = ((target.transform.position - transform.position).normalized * speed);
+            mRigidBody.velocity = Vector3.zero;
         }
-        else if (tag == PlayerPrefKeys.notFrozen)
+        else if (CompareTag(PlayerPrefKeys.notFrozen))
         {
             FindFrozenTarget();
             if (target)
             {
-                mRigidBody.velocity = ((target.transform.position - transform.position).normalized * speed);
-            }
-        }
-    }
-
-    private void FindTarget()
-    {
-        Vector3 OldDistanceToPlayer = Vector3.zero;
-        Vector3 distanceToPlayer = Vector3.zero;
-
-        foreach (GameObject player in gController.GetPlayers())
-        {
-            if (player != gameObject && !player.gameObject.CompareTag(PlayerPrefKeys.frozen))
-            {
-                if (OldDistanceToPlayer != Vector3.zero)
-                {
-                    distanceToPlayer = (player.transform.position - transform.position).normalized;
-                    if (distanceToPlayer.magnitude < OldDistanceToPlayer.magnitude)
-                    {
-                        target = player;
-                    }
-                }
-                else
-                {
-                    OldDistanceToPlayer = (player.transform.position - transform.position).normalized;
-                    target = player;
-                }
+                mRigidBody.velocity = ((target.transform.position - transform.position).normalized * currentSpeed);
             }
         }
     }
@@ -85,23 +84,27 @@ public class Seek : MonoBehaviour
         Vector3 OldDistanceToPlayer = Vector3.zero;
         Vector3 distanceToPlayer = Vector3.zero;
 
-        foreach (GameObject player in gController.GetPlayers())
+        foreach (TargetObject _targetObject in gController.GetObjects())
         {
-            if (player != gameObject && player.gameObject.CompareTag(PlayerPrefKeys.frozen))
+            if (hasTarget && !_targetObject.isTarget)
             {
-                if (OldDistanceToPlayer != Vector3.zero)
+                return;
+            }
+
+            if (OldDistanceToPlayer != Vector3.zero)
+            {
+                distanceToPlayer = (_targetObject.transform.position - transform.position).normalized;
+                if (distanceToPlayer.magnitude < OldDistanceToPlayer.magnitude)
                 {
-                    distanceToPlayer = (player.transform.position - transform.position).normalized;
-                    if (distanceToPlayer.magnitude < OldDistanceToPlayer.magnitude)
-                    {
-                        target = player;
-                    }
+                    target = _targetObject.gameObject;
+                    _targetObject.isTarget = false;
                 }
-                else
-                {
-                    OldDistanceToPlayer = (player.transform.position - transform.position).normalized;
-                    target = player;
-                }
+            }
+            else
+            {
+                OldDistanceToPlayer = (_targetObject.transform.position - transform.position).normalized;
+                target = _targetObject.gameObject;
+                _targetObject.isTarget = false;
             }
         }
     }
